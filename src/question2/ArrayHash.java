@@ -1,8 +1,15 @@
 package question2;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Random;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import question1.FindElement;
+import static question1.FindElement.FindElementD2;
+import static question1.FindElement.generateCSV;
 
 /**
  *
@@ -24,33 +31,28 @@ public class ArrayHash extends HashTable {
     @Override
     boolean add(Object obj) {
         int pos = obj.hashCode() % capacity;
-        if (table[pos] == null){
-            Object[] chain = new Object[chainSize];
-            // Add chain in pos
-            table[pos] = chain;
-            chain[0] = obj;
-            counts[pos]++;
+        if (table[pos] == null){//if the pos is empty
+            Object[] chain = new Object[chainSize];//create new chain
+            table[pos] = chain;// Add chain in pos
+            chain[0] = obj;//add the object in the first position of the chain
+            counts[pos]++;//increase the position count
             return true;            
         } else {
             if (counts[pos] == table[pos].length){
-                // if it's full
+                // if it's full a new chain double the sixe is created
                 Object[] chainNew = new Object[table[pos].length * 2];
-                // copy values over
+                // the values are copied into the new chain
                 System.arraycopy(table[pos], 0, chainNew, 0, table[pos].length);
-                table[pos] = chainNew;
-                // add obj
-                table[pos][counts[pos]] = obj;
-                // update count
-                counts[pos]++;
-                //System.out.println("Chain full, created a new one and added obj");
+                table[pos] = chainNew;//the new chain ovverrides the previous one
+                table[pos][counts[pos]] = obj;//add the element to the next null position
+                counts[pos]++;;//increase the position count
                 return true;
             } else {
                 // if there isnt a duplicate
                 if (!contains(obj)){
-                    // add it in the null position
+                    // add it in the next null position
                     table[pos][counts[pos]] = obj;
-                    counts[pos]++;
-                    //System.out.println("Added");
+                    counts[pos]++;//increase the position count
                     return true;
                 }
             }
@@ -64,9 +66,8 @@ public class ArrayHash extends HashTable {
         boolean found = false;
         int pos = obj.hashCode() % capacity;
         
-        for (Object o : table[pos]) {
+        for (Object o : table[pos]) {//traverses through the chain
             if ( o != null){
-                // if it's a duplicate
                 if(o.equals(obj)) {
                     found = true;
                     break;
@@ -81,7 +82,7 @@ public class ArrayHash extends HashTable {
         
         int pos = obj.hashCode() % capacity;
         
-        for (int i = 0; i < table[pos].length - 1; i++) {
+        for (int i = 0; i < counts[pos]-1; i++) {
             if(table[pos][i].equals(obj)){
                 table[pos][i] = null;//remove by setting element to null
                 counts[pos]--;//decreaase count
@@ -99,7 +100,7 @@ public class ArrayHash extends HashTable {
         return false;
     }
     
-    public static int[] generateArray(int n){
+    public static int[] generateA(int n){
         int[] A = new int[n];
         Random r = new Random();
         for (int i = 0; i < n; i++){
@@ -108,25 +109,79 @@ public class ArrayHash extends HashTable {
         return A;
     }
     
-    public static void timingExperiment(int[] A, ArrayHash h, int n){
-        for (int i = 0; i < n; i++){
-            h.add(A[i]);
+    public static void timingExperiment(int[] A, HashTable h, int n){
+        double[] data = new double[5];
+        int reps = 1000;
+        double sumAdd = 0;
+        double sumSquaredAdd = 0;
+        double sumRemove = 0;
+        double sumSquaredRemove = 0;
+        for (int i = 0; i < reps; i++){
+            long t1 = System.nanoTime();
+            for (int j = 0; j < n; j++){
+                h.add(A[j]);
+            }
+            long t2 = System.nanoTime() - t1;
+            sumAdd += (double)t2/1000000.0;
+            sumSquaredAdd += (t2/1000000.0) * (t2/1000000.0);
+        
+            long t3 = System.nanoTime();
+            for (int j = 0; j < n; j++){
+                h.remove(A[j]);
+            }
+            long t4 = System.nanoTime() - t3;
+            sumRemove += (double)t4/1000000.0;
+            sumSquaredRemove += (t4/1000000.0) * (t4/1000000.0);
         }
-        //h.remove(34);
+        double meanAdd = sumAdd/reps;
+        double varianceAdd = sumSquaredAdd / reps - (meanAdd*meanAdd);
+        double stdDevAdd = Math.sqrt(varianceAdd);
+        double meanRemove = sumRemove/reps;
+        double varianceRemove = sumSquaredRemove / reps - (meanRemove*meanRemove);
+        double stdDevRemove = Math.sqrt(varianceRemove);
+        data[0] = n;
+        data[1] = meanAdd;
+        data[2] = stdDevAdd;
+        data[3] = meanRemove;
+        data[4] = stdDevRemove;
+        System.out.format(meanAdd + " \t|\t " + varianceAdd + " \t|\t " + stdDevAdd + "\n");
+        System.out.format(meanRemove + " \t|\t " + varianceRemove + " \t|\t " + stdDevRemove + "\n");
+        try {
+            generateCSV(data);
+            //h.remove(34);
+        } catch (IOException ex) {
+            Logger.getLogger(ArrayHash.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    
+    public static void generateCSV(double[] data) throws IOException{
+        FileWriter fw = new FileWriter("hashresults.csv", true);
+        StringBuilder sb = new StringBuilder();
+        for (double t : data){
+            sb.append(t).append(",");
+        }
+        sb.append("\n");
+        fw.write(sb.toString());
+        fw.flush();
+        fw.close();
     }
     
     public static void main(String[] args){
         ArrayHash ht = new ArrayHash();
+        HashSet hs = new HashSet();
 //        System.out.println(ht.add(1));
 //        System.out.println(ht.add(1));
 //        System.out.println(ht.contains(1));
 //        System.out.println(ht.remove(1));
 
-        for (int i=0; i<50; i++){
-            ht.add(i);
-           if(i==49){
-               System.out.println("hi");
-           };
+        for (int n = 0; n < 50000;){
+            if (n < 10000){
+                n += 1000;
+            }else if (n >= 10000){
+                n += 5000;
+            }
+            int[] A = generateA(n);
+            timingExperiment(A,ht, n);
         }
         
         
